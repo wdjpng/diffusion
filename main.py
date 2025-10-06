@@ -7,7 +7,7 @@ import wandb
 
 import json
 
-with open('smiley_shitty.json', 'r') as file:
+with open('circle_thin.json', 'r') as file:
     boxes = torch.tensor(json.load(file), dtype=float)
     boxes = (boxes-torch.mean(boxes, dim=0)) / torch.std(boxes)
 boxes[:, 1] = - boxes[:, 1]
@@ -26,16 +26,15 @@ def circle_error(mlp):
             x_t += 0.001 * mlp(a)
 
     return torch.mean(torch.abs(radius**2-torch.sum(x_t**2, dim=1)))
-epochs = 400
-lr = 5e-3
+epochs = 100
+lr = 1e-3
 run = wandb.init(
     project="smilusion",  # Specify your project
     config={                        # Track hyperparameters and metadata
         "learning_rate": lr,
-        "epochs": epochs,
-        "form" : "circle"
+        "epochs": epochs
     },
-    tags= ['shitty_smiley']
+    tags= ['circle']
 )
 
 
@@ -69,7 +68,7 @@ plt.scatter(samples[:, 0], samples[:, 1])
 plt.figure()
 optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
 
-scheduler = lr_scheduler.StepLR(optimizer, step_size=25, gamma = 0.5)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma = 0.5)
 loss_history = []
 for epoch in range(epochs):
     samples = samples[torch.randperm(samples.shape[0])]
@@ -87,14 +86,14 @@ for epoch in range(epochs):
         a[:, 0:2] = x
         a[:, 2]  = t
 
-        loss = 1/batch_size * torch.norm((mlp(a) - samples[i*batch_size : (i+1)*batch_size] + eps))**2
+        loss = torch.mean(torch.sum((mlp(a) - samples[i*batch_size : (i+1)*batch_size] + eps)**2, dim=1))
 
         loss.backward()
         loss_history.append( scheduler.get_last_lr()[0])
 
         run.log({"loss" : loss.item(), "lr" : scheduler.get_last_lr()[0]})
         optimizer.step()
-    # run.log({'circle_error' : circle_error(mlp)})
+    run.log({'circle_error' : circle_error(mlp)})
     scheduler.step()
 
 wandb.finish()
