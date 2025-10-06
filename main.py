@@ -7,10 +7,10 @@ import wandb
 
 import json
 
-with open('circle_thin.json', 'r') as file:
+with open('smiley_shitty.json', 'r') as file:
     boxes = torch.tensor(json.load(file), dtype=float)
     boxes = (boxes-torch.mean(boxes, dim=0)) / torch.std(boxes)
-
+boxes[:, 1] = - boxes[:, 1]
 radius = torch.sqrt(2*torch.mean((boxes)**2))
 print(radius)
 def circle_error(mlp):
@@ -26,7 +26,7 @@ def circle_error(mlp):
             x_t += 0.001 * mlp(a)
 
     return torch.mean(torch.abs(radius**2-torch.sum(x_t**2, dim=1)))
-epochs = 40
+epochs = 400
 lr = 5e-3
 run = wandb.init(
     project="smilusion",  # Specify your project
@@ -35,7 +35,7 @@ run = wandb.init(
         "epochs": epochs,
         "form" : "circle"
     },
-    tags= ['circle']
+    tags= ['shitty_smiley']
 )
 
 
@@ -45,13 +45,13 @@ class MLP(nn.Module):
         super().__init__()
         
         self.net = nn.Sequential( 
-                nn.Linear(3,40),
+                nn.Linear(3,100),
                 nn.ReLU(),
-                nn.Linear(40,40),
+                nn.Linear(100,100),
                 nn.ReLU(),
-                nn.Linear(40,40),
+                nn.Linear(100,100),
                 nn.ReLU(),
-                nn.Linear(40,2)
+                nn.Linear(100,2)
             ) 
           
     def forward(self, x):
@@ -69,7 +69,7 @@ plt.scatter(samples[:, 0], samples[:, 1])
 plt.figure()
 optimizer = torch.optim.Adam(mlp.parameters(), lr=lr)
 
-scheduler = lr_scheduler.StepLR(optimizer, step_size=20, gamma = 0.1)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=25, gamma = 0.5)
 loss_history = []
 for epoch in range(epochs):
     samples = samples[torch.randperm(samples.shape[0])]
